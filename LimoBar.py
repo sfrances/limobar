@@ -2,6 +2,7 @@
 
 import time
 import pyotp
+import os
 
 from AppKit import *
 from Foundation import *
@@ -9,8 +10,16 @@ from PyObjCTools import AppHelper
 
 # import tokens from a separate file to avoid hardcoding them in the main app code
 import json
+# check if the tokens.json file exists, if not exit
+if not os.path.exists("tokens.json"):
+    print("Error: tokens.json file not found. Please create it with your OTP tokens.")
+    exit(1)
 with open("tokens.json") as f:
     TOKENS = json.load(f)
+    # check the format - it has to be a simple dictionary with string keys and values
+    if not isinstance(TOKENS, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in TOKENS.items()):
+        print("Error: tokens.json file format is invalid. It should be a dictionary with string keys and values.")
+        exit(1)
 
 PERIOD = 30
 
@@ -38,29 +47,52 @@ class AppDelegate(NSObject):
 
     def update_menu(self):
 
-        self.menu.removeAllItems()
-
         # get how many seconds are left until the next code is generated
         time_left = PERIOD - (int(time.time()) % PERIOD)
-        #print(f"Time left: {time_left}s")
+        print(f"Time left: {time_left}s")
 
-        for name, totp in self.totps.items():
 
-            code = totp.now()
+        # check if menu items already exist, if not create them, otherwise update the existing ones
+        nElements = self.menu.numberOfItems()
+        if nElements == 0:
+            for name, totp in self.totps.items():
 
-            item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-                f"{name}: {code} ({time_left}s left)",
-                "copyCode:",
-                ""
-            )
+                code = totp.now()
 
-            item.setRepresentedObject_(code)
-            self.menu.addItem_(item)
+                item = self.create_totp_menu_item(
+                        name,
+                        code,
+                        time_left / PERIOD,
+                        self,
+                        "copyCode:"
+                    )
+            
+                self.menu.addItem_(item)
 
-        self.menu.addItem_(NSMenuItem.separatorItem())
+            # separator
+            self.menu.addItem_(NSMenuItem.separatorItem())
 
-        quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Quit", "quit:", "q")
-        self.menu.addItem_(quit_item)
+            quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Quit", "quit:", "q")
+            self.menu.addItem_(quit_item)
+        else:
+            # just update the existing otp items (the first n-2)
+            for index, (name, totp) in enumerate(self.totps.items()):
+
+                code = totp.now()
+                title = f"{name}: {code} ({time_left}s left)"
+
+                # update it regenerating it
+                item = self.menu.itemAtIndex_(index)
+                new_item = self.create_totp_menu_item(
+                        name,
+                        code,
+                        time_left / PERIOD,
+                        self,
+                        "copyCode:"
+                    )
+                self.menu.removeItemAtIndex_(index)
+                self.menu.insertItem_atIndex_(new_item, index)
+
 
     def copyCode_(self, sender):
 
@@ -74,6 +106,83 @@ class AppDelegate(NSObject):
 
     def quit_(self, sender):
         NSApplication.sharedApplication().terminate_(self)
+
+
+    def create_totp_menu_item(self, name, code, fraction, target, action):
+
+        item = NSMenuItem.alloc().init()
+
+        # ---- container view ----
+        container = NSStackView.alloc().initWithFrame_(NSMakeRect(0,0,220,36))
+        container.setOrientation_(NSUserInterfaceLayoutOrientationHorizontal)
+        container.setSpacing_(8)
+        container.setEdgeInsets_(NSEdgeInsetsMake(4,8,4,8))
+
+        # ---- pie icon ----
+        image_view = NSImageView.alloc().initWithFrame_(NSMakeRect(0,0,18,18))
+        image_view.setImage_(self.create_pie_image(fraction))
+        container.addArrangedSubview_(image_view)
+
+        # ---- vertical text stack ----
+        text_stack = NSStackView.alloc().init()
+        text_stack.setOrientation_(NSUserInterfaceLayoutOrientationVertical)
+        text_stack.setSpacing_(0)
+
+        # account name
+        name_label = NSTextField.labelWithString_(name)
+        name_label.setFont_(NSFont.boldSystemFontOfSize_(13))
+
+        # TOTP code
+        code_label = NSTextField.labelWithString_(code)
+        code_label.setFont_(NSFont.monospacedDigitSystemFontOfSize_weight_(13, NSFontWeightRegular))
+
+        text_stack.addArrangedSubview_(name_label)
+        text_stack.addArrangedSubview_(code_label)
+
+        container.addArrangedSubview_(text_stack)
+
+        # ---- attach to menu item ----
+        item.setView_(container)
+
+        # Ensure the menu item remains interactive
+        item.setTarget_(target)
+        item.setAction_(action)
+        item.setRepresentedObject_(code)
+        #item.setEnabled_(True)  # Explicitly enable the item
+
+        return item
+    
+    def create_pie_image(self, fraction, size=18):
+
+        image = NSImage.alloc().initWithSize_((size,size))
+        image.lockFocus()
+
+        center = size/2
+        radius = size/2 - 1
+
+        # background
+        NSColor.quaternaryLabelColor().set()
+        NSBezierPath.bezierPathWithOvalInRect_(NSMakeRect(0,0,size,size)).fill()
+
+        # progress wedge
+        NSColor.systemBlueColor().set()
+        path = NSBezierPath.bezierPath()
+        path.moveToPoint_((center,center))
+
+        path.appendBezierPathWithArcWithCenter_radius_startAngle_endAngle_clockwise_(
+            (center,center),
+            radius,
+            90,
+            90 - 360*fraction,
+            True
+        )
+
+        path.closePath()
+        path.fill()
+
+        image.unlockFocus()
+
+        return image
 
 
 if __name__ == "__main__":
