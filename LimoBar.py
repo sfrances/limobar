@@ -55,17 +55,8 @@ class AppDelegate(NSObject):
         nElements = self.menu.numberOfItems()
         if nElements == 0:
             for name, totp in self.totps.items():
-
                 code = totp.now()
-
-                item = self.create_totp_menu_item(
-                        name,
-                        code,
-                        time_left / PERIOD,
-                        self,
-                        "copyCode:"
-                    )
-
+                item = self.create_totp_menu_item(name, code, time_left / PERIOD)
                 self.menu.addItem_(item)
 
             # separator
@@ -76,56 +67,21 @@ class AppDelegate(NSObject):
         else:
             # update the existing otp items (the first n-2)
             for index, (name, totp) in enumerate(self.totps.items()):
-
                 code = totp.now()
-                title = f"{name}: {code} ({time_left}s left)"
-
-                # update the existing item
                 item = self.menu.itemAtIndex_(index)
-                item.setRepresentedObject_(code)
-                item.setImage_(self.create_pie_image(time_left / PERIOD))
+                self.update_totp_menu_item(item, name, code, time_left / PERIOD)
 
-                # update the attributed title
-                attributed_title = NSMutableAttributedString.alloc().init()
+    def create_totp_menu_item(self, name, code, fraction):
+        item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(name, "copyCode:", "")
+        item.setTarget_(self)
+        self.update_totp_menu_item(item, name, code, fraction)
+        return item
 
-                name_part = NSAttributedString.alloc().initWithString_attributes_(
-                    name + "\n",
-                    {NSFontAttributeName: NSFont.boldSystemFontOfSize_(13)}
-                )
-                code_part = NSAttributedString.alloc().initWithString_attributes_(
-                    code,
-                    {NSFontAttributeName: NSFont.monospacedDigitSystemFontOfSize_weight_(13, NSFontWeightRegular)}
-                )
-
-                attributed_title.appendAttributedString_(name_part)
-                attributed_title.appendAttributedString_(code_part)
-
-                item.setAttributedTitle_(attributed_title)
-
-    def copyCode_(self, sender):
-
-        code = sender.representedObject()
-
-        pasteboard = NSPasteboard.generalPasteboard()
-        pasteboard.clearContents()
-        pasteboard.setString_forType_(code, NSPasteboardTypeString)
-
-        #print("Copied:", code)
-
-    def quit_(self, sender):
-        NSApplication.sharedApplication().terminate_(self)
-
-
-    def create_totp_menu_item(self, name, code, fraction, target, action):
-
-        item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(name, action, "")
-        item.setTarget_(target)
+    def update_totp_menu_item(self, item, name, code, fraction):
         item.setRepresentedObject_(code)
-
-        # ---- pie icon ----
         item.setImage_(self.create_pie_image(fraction))
 
-        # ---- two-line attributed title: bold name / monospaced code ----
+        # update the attributed title
         attributed_title = NSMutableAttributedString.alloc().init()
 
         name_part = NSAttributedString.alloc().initWithString_attributes_(
@@ -142,8 +98,20 @@ class AppDelegate(NSObject):
 
         item.setAttributedTitle_(attributed_title)
 
-        return item
-    
+    def copyCode_(self, sender):
+
+        code = sender.representedObject()
+
+        pasteboard = NSPasteboard.generalPasteboard()
+        pasteboard.clearContents()
+        pasteboard.setString_forType_(code, NSPasteboardTypeString)
+
+        #print("Copied:", code)
+
+    def quit_(self, sender):
+        NSApplication.sharedApplication().terminate_(self)
+
+
     def create_pie_image(self, fraction, size=18):
 
         image = NSImage.alloc().initWithSize_((size,size))
