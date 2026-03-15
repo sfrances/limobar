@@ -50,8 +50,6 @@ class AppDelegate(NSObject):
 
         # get how many seconds are left until the next code is generated
         time_left = PERIOD - (int(time.time()) % PERIOD)
-        #print(f"Time left: {time_left}s")
-
 
         # check if menu items already exist, if not create them, otherwise update the existing ones
         nElements = self.menu.numberOfItems()
@@ -67,7 +65,7 @@ class AppDelegate(NSObject):
                         self,
                         "copyCode:"
                     )
-            
+
                 self.menu.addItem_(item)
 
             # separator
@@ -76,24 +74,33 @@ class AppDelegate(NSObject):
             quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_("Quit", "quit:", "q")
             self.menu.addItem_(quit_item)
         else:
-            # just update the existing otp items (the first n-2)
+            # update the existing otp items (the first n-2)
             for index, (name, totp) in enumerate(self.totps.items()):
 
                 code = totp.now()
                 title = f"{name}: {code} ({time_left}s left)"
 
-                # update it regenerating it
+                # update the existing item
                 item = self.menu.itemAtIndex_(index)
-                new_item = self.create_totp_menu_item(
-                        name,
-                        code,
-                        time_left / PERIOD,
-                        self,
-                        "copyCode:"
-                    )
-                self.menu.removeItemAtIndex_(index)
-                self.menu.insertItem_atIndex_(new_item, index)
+                item.setRepresentedObject_(code)
+                item.setImage_(self.create_pie_image(time_left / PERIOD))
 
+                # update the attributed title
+                attributed_title = NSMutableAttributedString.alloc().init()
+
+                name_part = NSAttributedString.alloc().initWithString_attributes_(
+                    name + "\n",
+                    {NSFontAttributeName: NSFont.boldSystemFontOfSize_(13)}
+                )
+                code_part = NSAttributedString.alloc().initWithString_attributes_(
+                    code,
+                    {NSFontAttributeName: NSFont.monospacedDigitSystemFontOfSize_weight_(13, NSFontWeightRegular)}
+                )
+
+                attributed_title.appendAttributedString_(name_part)
+                attributed_title.appendAttributedString_(code_part)
+
+                item.setAttributedTitle_(attributed_title)
 
     def copyCode_(self, sender):
 
