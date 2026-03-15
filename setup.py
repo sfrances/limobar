@@ -14,7 +14,7 @@ OPTIONS = {
 setup(
     app=APP,
     name="LimoBar",
-    version="0.2",
+    version="0.3",
     options={'py2app': OPTIONS},
     setup_requires=['py2app'],
     include_package_data=True,  # Ensure package data is included
