@@ -49,7 +49,7 @@ class AppDelegate(NSObject):
 
         # get how many seconds are left until the next code is generated
         time_left = PERIOD - (int(time.time()) % PERIOD)
-        print(f"Time left: {time_left}s")
+        #print(f"Time left: {time_left}s")
 
 
         # check if menu items already exist, if not create them, otherwise update the existing ones
@@ -102,7 +102,7 @@ class AppDelegate(NSObject):
         pasteboard.clearContents()
         pasteboard.setString_forType_(code, NSPasteboardTypeString)
 
-        print("Copied:", code)
+        #print("Copied:", code)
 
     def quit_(self, sender):
         NSApplication.sharedApplication().terminate_(self)
@@ -110,45 +110,29 @@ class AppDelegate(NSObject):
 
     def create_totp_menu_item(self, name, code, fraction, target, action):
 
-        item = NSMenuItem.alloc().init()
-
-        # ---- container view ----
-        container = NSStackView.alloc().initWithFrame_(NSMakeRect(0,0,220,36))
-        container.setOrientation_(NSUserInterfaceLayoutOrientationHorizontal)
-        container.setSpacing_(8)
-        container.setEdgeInsets_(NSEdgeInsetsMake(4,8,4,8))
+        item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(name, action, "")
+        item.setTarget_(target)
+        item.setRepresentedObject_(code)
 
         # ---- pie icon ----
-        image_view = NSImageView.alloc().initWithFrame_(NSMakeRect(0,0,18,18))
-        image_view.setImage_(self.create_pie_image(fraction))
-        container.addArrangedSubview_(image_view)
+        item.setImage_(self.create_pie_image(fraction))
 
-        # ---- vertical text stack ----
-        text_stack = NSStackView.alloc().init()
-        text_stack.setOrientation_(NSUserInterfaceLayoutOrientationVertical)
-        text_stack.setSpacing_(0)
+        # ---- two-line attributed title: bold name / monospaced code ----
+        attributed_title = NSMutableAttributedString.alloc().init()
 
-        # account name
-        name_label = NSTextField.labelWithString_(name)
-        name_label.setFont_(NSFont.boldSystemFontOfSize_(13))
+        name_part = NSAttributedString.alloc().initWithString_attributes_(
+            name + "\n",
+            {NSFontAttributeName: NSFont.boldSystemFontOfSize_(13)}
+        )
+        code_part = NSAttributedString.alloc().initWithString_attributes_(
+            code,
+            {NSFontAttributeName: NSFont.monospacedDigitSystemFontOfSize_weight_(13, NSFontWeightRegular)}
+        )
 
-        # TOTP code
-        code_label = NSTextField.labelWithString_(code)
-        code_label.setFont_(NSFont.monospacedDigitSystemFontOfSize_weight_(13, NSFontWeightRegular))
+        attributed_title.appendAttributedString_(name_part)
+        attributed_title.appendAttributedString_(code_part)
 
-        text_stack.addArrangedSubview_(name_label)
-        text_stack.addArrangedSubview_(code_label)
-
-        container.addArrangedSubview_(text_stack)
-
-        # ---- attach to menu item ----
-        item.setView_(container)
-
-        # Ensure the menu item remains interactive
-        item.setTarget_(target)
-        item.setAction_(action)
-        item.setRepresentedObject_(code)
-        #item.setEnabled_(True)  # Explicitly enable the item
+        item.setAttributedTitle_(attributed_title)
 
         return item
     
