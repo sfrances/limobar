@@ -1,0 +1,3 @@
+pyobjc
+pyotp
+py2app
