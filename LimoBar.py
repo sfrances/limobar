@@ -38,9 +38,10 @@ class AppDelegate(NSObject):
         self.update_menu()
 
         # refresh every second and update the text of the menu items
-        NSTimer.scheduledTimerWithTimeInterval_target_selector_userInfo_repeats_(
-            1.0, self, "tick:", None, True
-        )
+        timer = NSTimer.timerWithTimeInterval_target_selector_userInfo_repeats_(
+            1.0, self, "tick:", None, True)
+
+        NSRunLoop.currentRunLoop().addTimer_forMode_(timer, NSRunLoopCommonModes)
 
     def tick_(self, timer):
         self.update_menu()
